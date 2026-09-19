@@ -7,7 +7,7 @@ TimeToil reconstructs a workday for timesheets, billing records, and personal wo
 - Microsoft 365 calendar events
 - Microsoft Teams chats and messages
 - Inbox and sent email
-- Local Microsoft Edge Default-profile browser history
+- Local Microsoft Edge and other browser history, providing control for which profiles are included
 - CSV or Excel browser-history exports when local history is unavailable
 
 The skill normalizes timestamps to the user's local timezone and produces a half-hour Markdown timeline with concise supporting evidence. It also suggests an allocation of time across projects, clients, workstreams, meetings, administration, and gaps where no work activity can be established.
