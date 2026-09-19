@@ -13,6 +13,8 @@ First-run preferences:
   1. confidence threshold to include in results and allocations; and
   2. browser/profile selection for local browsing evidence.
 - If either preference is missing, ask the user once at the start of the run and then remember the answer for future TimeToil runs.
+- Only ask for these durable preferences in this first-run preferences prompt. Do not include target dates in the same prompt.
+- The first-run preferences prompt must not block the user from accepting defaults. If the UI allows blank submissions, a blank submission means "use defaults." If the UI disables Submit for blank text, provide an explicit `Use defaults` / `Skip` choice so the user can continue without typing a value.
 - For confidence threshold, offer these choices:
   - High only: include only high-confidence work blocks in allocations.
   - Medium and high: include medium- and high-confidence work blocks in allocations. This is the default if the user skips or gives no preference.
@@ -25,8 +27,17 @@ First-run preferences:
 - Store remembered preferences concisely, for example: `TimeToil confidence threshold: Medium and high` and `TimeToil browser profiles: Edge Default; Chrome Profile 2 (Work)`.
 - If the user explicitly supplies a confidence level or browser/profile override in a later run, use that override for the current run and update memory when it appears to be a durable preference.
 
+Prompt sequence:
+1. Resolve first-run preferences before collecting evidence. If confidence threshold or browser/profile selection is missing from memory, ask for those preference values only.
+2. After first-run preferences have been resolved or confirmed from memory, ask for the target date or date range in a separate prompt unless the user already supplied it in the current request.
+3. Do not combine target dates with confidence threshold or browser/profile selection. Target dates are per-run inputs; confidence threshold and browser/profile selection are durable preferences.
+4. Every prompt in this sequence must provide a no-typing path to accept defaults. Prefer accepting an empty submission when the UI supports it; otherwise include an explicit default/skip option that enables Submit.
+
 Inputs:
-- Target day. If omitted, default to yesterday based on the current date/time supplied by the host.
+- Target dates:
+	- Present the user with a separate input field with tool tips example for accepted values (today, this work week, September 30th, etc.).
+	- Do not rely on a blank input field if the UI keeps Submit disabled while the field is empty. In that case, include an explicit `Use yesterday` / `Default` option or tell the user they may type `default`.
+	- If omitted, submitted blank, or answered with `default`, default to yesterday based on the current date/time supplied by the host.
 - Primary browser-history source: the selected local Edge and/or Chrome Chromium profile History databases.
 - Browser-history export, usually CSV or XLS/XLSX, is optional fallback or supplemental evidence. If neither selected local browser history nor a browser-history file is available, continue with calendar/Teams/email and clearly mark browser evidence as missing.
 
@@ -98,3 +109,4 @@ Summary allocation:
 Privacy/safety:
 - Treat all M365 and browser-history data as private. Do not send, share, or create outbound messages from this data without explicit confirmation.
 - Do not write private details to files unless the user explicitly asks for a file output.
+- Redact any PII or sensitive information from the output unless the user explicitly asks to include it.
