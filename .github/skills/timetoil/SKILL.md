@@ -51,6 +51,7 @@ Data sources to use:
 2. Teams chats/messages for chats active on or near the target day via workiq_list_chats and workiq_list_chat_messages.
 3. Email evidence from Inbox and Sent Items for the target day via workiq_list_emails.
 4. Local browser history from the selected Edge and/or Chrome profiles as described above; use an attached browser-history export only as fallback or supplemental evidence if the user explicitly provides one.
+5. For calendar-backed Teams meetings where actual attendance or early adjournment matters, use available Teams meeting metadata, chat activity, and transcripts when accessible via workiq_list_meeting_transcripts and workiq_get_meeting_transcript. Treat transcript availability as optional; do not fail the reconstruction if it is unavailable.
 
 Required output format:
 - Use a Markdown table.
@@ -73,6 +74,7 @@ Required output format:
 Confidence handling:
 - Assign confidence per breakdown row based on the strength and agreement of evidence.
 - High confidence usually requires direct active-work evidence such as browser activity in work tools/documents, sent Teams messages, sent email, or confirmed meeting attendance signals aligned to the activity.
+- High confidence for a meeting ending early requires strong actual-duration evidence, such as a transcript or recording ending early, explicit meeting chat indicating adjournment, or a clear shift from active meeting participation to unrelated active work immediately after the inferred end.
 - Medium confidence usually has a plausible calendar or passive-context anchor plus some supporting evidence, but not enough direct active-work evidence.
 - Low confidence is ambiguous, weak, passive, or inferred activity.
 - None means no work activity signals.
@@ -81,6 +83,8 @@ Confidence handling:
 
 Analysis guidance:
 - Use calendar meetings as the strongest scheduling anchor, but do not assume tentative/free meetings were attended unless browser/Teams evidence supports it.
+- Distinguish scheduled meeting duration from inferred actual meeting duration. If a calendar block is scheduled for longer than the evidence supports, split the scheduled block at the selected breakdown boundary where meeting evidence appears to stop. Label the remaining time according to subsequent active evidence, or as ambiguous/no activity if there are no signals.
+- Infer early adjournment only when supported by evidence such as transcript end time, explicit Teams chat, meeting attendance metadata, or unrelated browser/email/Teams activity beginning before the scheduled end. If only the calendar event exists, keep the full scheduled meeting as a calendar anchor and mark the confidence appropriately.
 - Use browser history to identify active workstreams, accounts, tools, documents, and customer/opportunity context.
 - Use Teams messages to identify active participation or meeting-topic context; distinguish active messages from passive meeting chat if possible.
 - Use email subjects/senders only as supporting signals unless the user asks to inspect full email bodies.
