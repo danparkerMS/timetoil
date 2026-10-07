@@ -1,12 +1,12 @@
 ---
 name: "timetoil"
-description: "Reconstruct a workday for timekeeping using calendar, Teams chats, email, and selected local Edge/Chrome browser profiles, with CSV/XLS browser-history export as fallback."
+description: "Reconstruct a workday for timekeeping using calendar, Teams chats, email, selected local Edge/Chrome browser profiles, and local VS Code/Git/PowerShell activity anchors, with CSV/XLS browser-history export as fallback."
 ---
 
 Use this skill when the user wants to reconstruct a workday for a timesheet, time-tracking system, billing record, or personal work log.
 
 Goal:
-Produce a timekeeping-ready workday reconstruction using Microsoft 365 context plus browser-history evidence from the user's selected local Microsoft Edge and/or Google Chrome profiles. Keep the result system-neutral unless the user names a specific timekeeping system or supplies its categories or format. Use a user-supplied browser-history export only as a fallback when the selected local browser history databases cannot be read or when the user explicitly provides one.
+Produce a timekeeping-ready workday reconstruction using Microsoft 365 context, browser-history evidence from the user's selected local Microsoft Edge and/or Google Chrome profiles, and local activity anchors from VS Code/Git and PowerShell where available. Keep the result system-neutral unless the user names a specific timekeeping system or supplies its categories or format. Use a user-supplied browser-history export only as a fallback when the selected local browser history databases cannot be read or when the user explicitly provides one.
 
 First-run preferences:
 - Before collecting evidence, check memory for existing TimeToil preferences covering all three:
@@ -34,6 +34,7 @@ First-run preferences:
 Inputs:
 - Target day. If omitted, default to yesterday based on the current date/time supplied by the host.
 - Primary browser-history source: the selected local Edge and/or Chrome Chromium profile History databases.
+- Local activity-anchor sources: VS Code logs/state timestamps and PowerShell PSReadLine command history where available.
 - Browser-history export, usually CSV or XLS/XLSX, is optional fallback or supplemental evidence. If neither selected local browser history nor a browser-history file is available, continue with calendar/Teams/email and clearly mark browser evidence as missing.
 
 Local Chromium browser history handling:
@@ -46,12 +47,23 @@ Local Chromium browser history handling:
 - Clean up any temporary History database copies after extraction.
 - If SQLite CLI tools are unavailable, use Python's built-in `sqlite3` module rather than requiring the user to install an exporter.
 
+Local VS Code/Git and PowerShell activity anchors:
+- Use local activity anchors to strengthen or bound coding-heavy work blocks, especially when browser history is sparse or the user mentions VS Code, Git, terminal, shell, repository, branch, commit, merge, rebase, or command-line work.
+- Inspect VS Code logs under `%APPDATA%\Code\logs\`, especially `window*\exthost\vscode.git\Git.log`, for timestamped Git operations such as `git status`, `git fetch`, `git show`, `git blame`, `git diff`, branch/ref scans, repository opens, and file paths. These are strong evidence that VS Code was active in a specific repository or file context when they align with other signals.
+- Inspect VS Code state and workspace timestamps under `%APPDATA%\Code\User\globalStorage\` and `%APPDATA%\Code\User\workspaceStorage\` to identify active VS Code windows/workspaces and last-update boundaries. Treat state-file LastWriteTime as an activity boundary, not as proof of a specific task unless corroborated by Git logs, terminal history, browser history, or M365 signals.
+- Inspect PowerShell PSReadLine history at `%APPDATA%\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt` and, when relevant, shell histories such as `%USERPROFILE%\.bash_history` or `%USERPROFILE%\.zsh_history`. Use the history file LastWriteTime as a terminal activity boundary and the recent commands as task context. Do not assume every listed command ran during the target window unless the file timestamp or other evidence supports it.
+- Prefer timestamped VS Code Git log entries over untimestamped shell-history lines for precise placement. Use shell-history content to explain what the user was likely doing, and use the history file LastWriteTime plus surrounding evidence to bound when it happened.
+- Treat VS Code/Git and PowerShell anchors as active-work evidence when they show repository interaction, file navigation, diffs, branch operations, commits, fetches, tests, builds, or meaningful commands. Treat automatic background polling, periodic fetches, extension startup noise, and state-file writes as medium or low confidence unless corroborated.
+- Summarize these anchors in Evidence cells as `**VS Code/Git:** ...` and `**Terminal:** ...`, naming repositories, branches, files, or command themes when available without overloading the table.
+- For after-hours work, local VS Code/Git and terminal anchors can establish a defensible "sat down and resumed work" time when they follow a no-signal gap and align with browser searches or M365 activity.
+
 Data sources to use:
 1. Calendar events for the target day via workiq_list_events.
 2. Teams chats/messages for chats active on or near the target day via workiq_list_chats and workiq_list_chat_messages.
 3. Email evidence from Inbox and Sent Items for the target day via workiq_list_emails.
 4. Local browser history from the selected Edge and/or Chrome profiles as described above; use an attached browser-history export only as fallback or supplemental evidence if the user explicitly provides one.
-5. For calendar-backed Teams meetings where actual attendance or early adjournment matters, use available Teams meeting metadata, chat activity, and transcripts when accessible via workiq_list_meeting_transcripts and workiq_get_meeting_transcript. Treat transcript availability as optional; do not fail the reconstruction if it is unavailable.
+5. Local VS Code/Git logs/state timestamps and PowerShell/shell history as described above.
+6. For calendar-backed Teams meetings where actual attendance or early adjournment matters, use available Teams meeting metadata, chat activity, and transcripts when accessible via workiq_list_meeting_transcripts and workiq_get_meeting_transcript. Treat transcript availability as optional; do not fail the reconstruction if it is unavailable.
 
 Required output format:
 - Use a Markdown table.
@@ -65,6 +77,8 @@ Required output format:
 - In the Evidence cell, use bullets grouped by data category, for example:
   - **Meeting:** ...
   - **Browser:** `Chrome / Work`: ...
+  - **VS Code/Git:** ...
+  - **Terminal:** ...
   - **Teams:** ...
   - **Email:** ...
 - Keep evidence concise but specific enough to justify the classification.
@@ -86,6 +100,7 @@ Analysis guidance:
 - Distinguish scheduled meeting duration from inferred actual meeting duration. If a calendar block is scheduled for longer than the evidence supports, split the scheduled block at the selected breakdown boundary where meeting evidence appears to stop. Label the remaining time according to subsequent active evidence, or as ambiguous/no activity if there are no signals.
 - Infer early adjournment only when supported by evidence such as transcript end time, explicit Teams chat, meeting attendance metadata, or unrelated browser/email/Teams activity beginning before the scheduled end. If only the calendar event exists, keep the full scheduled meeting as a calendar anchor and mark the confidence appropriately.
 - Use browser history to identify active workstreams, accounts, tools, documents, and customer/opportunity context.
+- Use local VS Code/Git and PowerShell anchors to identify repository, file, branch, command, and coding-task context.
 - Use Teams messages to identify active participation or meeting-topic context; distinguish active messages from passive meeting chat if possible.
 - Use email subjects/senders only as supporting signals unless the user asks to inspect full email bodies.
 - Mark personal, OOF, admin, below-threshold, or ambiguous blocks plainly rather than forcing them into work categories.
@@ -93,7 +108,7 @@ Analysis guidance:
 
 Timezone and activity-signal handling:
 - Always normalize all timestamps to the user's local timezone before placing evidence in the table. Treat ISO timestamps ending in `Z` as UTC and convert them explicitly; do not display or reason from raw UTC times as if they were local.
-- Use browser history, sent messages, sent email, and active meeting participation as stronger evidence of active work than passive signals.
+- Use browser history, timestamped VS Code/Git activity, terminal activity boundaries, sent messages, sent email, and active meeting participation as stronger evidence of active work than passive signals.
 - Treat Teams thread messages from other people, calendar RSVP artifacts, meeting acceptances, and automated/system events as weak/passive evidence unless they align with browser history, user-authored messages, or other active-work signals.
 - Include after-hours work inline in the daily reconstruction table when there are actual work activity signals. Do not move after-hours work into a separate summary section unless the user asks.
 - If there is a gap longer than one selected breakdown increment with no work activity signals, include the gap in the table and mark it plainly, e.g. "No work activity signals during this time."
